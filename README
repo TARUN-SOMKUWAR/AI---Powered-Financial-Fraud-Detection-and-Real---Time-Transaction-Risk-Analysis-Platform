@@ -1,0 +1,451 @@
+# AI-Powered Financial Fraud Detection & Real-Time Risk Analysis Platform
+
+An AI-powered financial fraud detection platform designed to identify suspicious transactions using machine learning, statistical anomaly detection, transaction-velocity analysis, and customizable business rules. The project aims to provide risk scoring, explainable predictions, real-time transaction simulation, and cost-aware fraud prevention through an interactive dashboard.
+
+> **Project status:** Architecture and development plan defined. Full module integration, end-to-end testing, and quantitative performance evaluation are pending unless explicitly verified in the implementation.
+
+## Table of Contents
+
+- [Overview]
+- [Objectives]
+- [System Architecture]
+- [Core Features]
+- [Risk Scoring Methodology]
+- [Technology Stack]
+- [Datasets]
+- [API Design]
+- [Dashboard]
+- [Testing and Validation]
+- [Implementation Status]
+- [Project Structure]
+- [Installation and Usage]
+- [Security and Reliability]
+- [Limitations]
+- [Future Enhancements]
+- [Conclusion]
+
+## Overview
+
+Financial fraud detection is challenging because fraudulent transactions are relatively rare, fraud patterns change over time, and excessive false alarms can inconvenience legitimate customers.
+
+This project proposes a hybrid fraud detection system that combines supervised machine learning with statistical anomaly detection, transaction-velocity analysis, and configurable rules. The system will estimate transaction risk, provide explanations, generate alerts, and recommend an appropriate action.
+
+The platform is intended for academic research and demonstration. It does not connect to a real banking or payment network.
+
+## Objectives
+
+- Detect potentially fraudulent financial transactions.
+- Develop a hybrid risk assessment pipeline.
+- Identify unusual transaction amounts and high-frequency activity.
+- Allow configurable rules and alerts.
+- Provide explainable fraud predictions.
+- Minimize the expected financial cost of fraud and false positives.
+- Monitor changes in transaction behaviour and model performance.
+- Evaluate the system using time-based validation and multiple datasets where feasible.
+
+## System Architecture
+
+```text
+        Transaction Input / Stream Simulator
+                       |
+                       v
+            Data Validation and
+             Feature Engineering
+                       |
+          +------------+------------+
+          |            |            |
+          v            v            v
+       XGBoost     Statistical    Isolation
+       Model       Anomaly        Forest
+          |        Detection         |
+          +------------+------------+
+                       |
+                       v
+           Transaction Velocity
+             and Rule Indicators
+                       |
+                       v
+             Stacking Meta-Model
+            + Probability Calibration
+                       |
+                       v
+             Cost-Aware Decision
+                   Engine
+                       |
+             +---------+---------+
+             |         |         |
+             v         v         v
+           APPROVE   REVIEW     BLOCK
+                       |
+                       v
+             FastAPI Backend
+                       |
+             +---------+---------+
+             |                   |
+             v                   v
+       Database Storage    Streamlit Dashboard
+             |
+             v
+       Drift Monitoring
+       and Reviewer Feedback
+```
+
+*This diagram represents the target architecture. Components should be considered implemented only after integration and testing.*
+
+## Core Features
+
+### 1. Machine Learning Fraud Detection
+
+- XGBoost as the primary supervised model.
+- Logistic Regression as a potential baseline.
+- Handling of imbalanced transaction data.
+- Fraud probability estimation for individual transactions.
+
+### 2. Statistical Anomaly Detection
+
+Analyze transaction amounts using log transformations and customer-specific historical behaviour. Unusually large transactions can receive higher anomaly scores.
+
+For example:
+
+\[
+Z_{\text{amount}} =
+\frac{\log(1+a)-\mu}{\sigma}
+\]
+
+Where:
+
+- \(a\) is the transaction amount.
+- \(\mu\) is the historical mean of log-transformed amounts.
+- \(\sigma\) is the corresponding standard deviation.
+
+Customer- and transaction-type-specific statistics are preferred when sufficient history exists, with fallback statistics for new customers.
+
+### 3. Transaction Velocity Detection
+
+Analyze the number and frequency of transactions within defined time windows, such as ten minutes. Compare Poisson-based modelling with simpler transaction-count features.
+
+### 4. Isolation Forest
+
+Use unsupervised anomaly detection to identify unusual patterns that may not have been represented in the labelled training data.
+
+### 5. Custom Rules and Alerts
+
+The proposed rule engine supports configurable conditions such as:
+
+- Transactions exceeding ₹30,000.
+- Unusual balance depletion.
+- Repeated transactions within a short period.
+- Transactions during configured high-risk hours.
+- Repeated transfers just below a rule threshold.
+
+Example rule:
+
+```json
+{
+  "rule_name": "High-Value Transaction",
+  "field": "amount",
+  "operator": ">",
+  "value": 30000,
+  "action": "REVIEW",
+  "enabled": true
+}
+```
+
+This is an example configuration, not confirmation that the rule engine is already implemented.
+
+### 6. Explainable AI
+
+SHAP is planned to explain individual predictions and identify globally important features. Human-readable reason codes may explain why a transaction was flagged.
+
+### 7. Real-Time Transaction Simulation
+
+A simulator will generate or replay transactions to demonstrate the scoring pipeline, alerts, and dashboard. Unless a streaming broker is integrated, this will be a simulated stream rather than a production Kafka pipeline.
+
+### 8. Cost-Aware Decision Engine
+
+Select transaction actions using estimated fraud losses, false-positive costs, manual-review costs, and reviewer capacity.
+
+### 9. Drift Monitoring
+
+Use Population Stability Index (PSI), Kolmogorov–Smirnov (KS) tests, and delayed-label performance monitoring to identify changes in transaction distributions and model performance.
+
+## Risk Scoring Methodology
+
+The initial concept uses a mathematical risk score combining machine learning probability, statistical anomaly, transaction velocity, and rule indicators.
+
+The preferred research design is to use a Logistic Regression stacking model to learn how the signals should be combined, followed by probability calibration using isotonic regression or Platt scaling.
+
+Candidate inputs include:
+
+- Supervised fraud probability.
+- Statistical amount-anomaly score.
+- Transaction-velocity score.
+- Isolation Forest anomaly score.
+
+Business-rule overrides should remain separate from calibrated fraud probability so that a rule-triggered decision does not distort the interpretation of the model probability.
+
+The decision engine will recommend:
+
+| Decision | Meaning |
+|---|---|
+| **APPROVE** | Allow the transaction when risk and rules permit. |
+| **REVIEW** | Request additional verification or analyst investigation. |
+| **BLOCK** | Reject or hold a transaction according to configured policy. |
+
+Calibration and cost optimization must be verified experimentally before they are described as achieved results.
+
+## Technology Stack
+
+| Component | Technology |
+|---|---|
+| Programming language | Python |
+| Machine learning | XGBoost, scikit-learn |
+| Anomaly detection | Isolation Forest, statistical methods |
+| Explainability | SHAP |
+| Backend API | FastAPI, Pydantic |
+| Dashboard | Streamlit, Plotly |
+| Database | PostgreSQL or SQLite for an initial prototype |
+| Drift monitoring | PSI, KS tests, optional Evidently |
+| Experiment tracking | MLflow or structured CSV/JSON logs |
+| Testing | pytest |
+| Deployment | Docker Compose (planned) |
+
+## Datasets
+
+### Primary Dataset: PaySim
+
+PaySim is the proposed primary dataset for developing and testing the initial pipeline. It contains synthetic mobile-money transactions and is useful for prototyping.
+
+Results on PaySim should be reported as results on a synthetic benchmark, not as proof of performance in a live financial environment.
+
+### Additional Validation Dataset
+
+To assess generalization, the project plans to add one additional dataset, such as:
+
+- IEEE-CIS Fraud Detection.
+- European credit card fraud dataset (ULB).
+
+Dataset sources, usage terms, preprocessing, class balance, and feature mappings should be documented.
+
+### Data Leakage Prevention
+
+- Use chronological train-validation-test splits.
+- Use PaySim's `step` or IEEE-CIS's `TransactionDT` for temporal ordering.
+- Fit preprocessing only on training data.
+- Compare results with and without potentially leakage-prone balance-delta features.
+- Use validation data for calibration and threshold selection.
+
+## API Design
+
+The planned FastAPI backend will expose the following endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/score` | Score a transaction and return risk and decision information. |
+| POST | `/rules/add` | Add a configurable alert rule. |
+| GET | `/alerts` | Retrieve triggered alerts. |
+| GET | `/stats` | Retrieve aggregate transaction and fraud statistics. |
+| GET | `/health` | Check API availability. |
+
+These endpoints are planned and should be marked as available only after implementation and testing.
+
+## Dashboard
+
+The planned Streamlit dashboard will include:
+
+- Transaction monitoring.
+- Risk scores and decision categories.
+- Alert and custom-rule management.
+- Fraud statistics and model evaluation metrics.
+- SHAP-based explanations.
+- Drift indicators.
+- Reviewer feedback and case history, if implemented.
+
+## Testing and Validation
+
+### Planned Automated Tests
+
+- Validate risk-feature calculations.
+- Test the high-value transaction rule.
+- Validate API inputs and error handling.
+- Test decision thresholds and reviewer-capacity constraints.
+- Check preprocessing for data leakage.
+- Verify drift alerts using simulated distribution changes.
+
+### Planned Integration Test
+
+1. Submit a normal transaction.
+2. Add a rule for transactions exceeding ₹30,000.
+3. Submit a ₹45,000 transaction and check whether the alert fires.
+4. Simulate repeated ₹29,900 transactions to test structuring detection.
+5. Inject a distribution shift and check drift-monitoring behaviour.
+6. Confirm that alerts and decisions are stored correctly.
+
+### Evaluation Metrics
+
+The final evaluation should report:
+
+- Precision and recall.
+- PR-AUC.
+- Recall at a fixed precision level, where achievable.
+- Confusion matrix and false-positive rate.
+- Brier score and probability calibration.
+- Expected financial cost.
+- Bootstrap confidence intervals and suitable model-comparison tests.
+- API latency (p50, p95, p99) and throughput.
+
+**No verified performance measurements are claimed in this README. Results should be added after experiments have been run.**
+
+An ablation study should compare ML-only detection with the statistical, velocity, rule, and full-hybrid configurations.
+
+## Implementation Status
+
+| Module | Current status |
+|---|---|
+| Review of existing fraud-detection repositories | Completed as preliminary research |
+| System architecture and module planning | Defined |
+| Integrated scoring pipeline | Pending integration and verification |
+| XGBoost training and inference | Requires implementation/verification |
+| Statistical and velocity features | Planned |
+| Isolation Forest and stacking | Planned |
+| Probability calibration | Planned |
+| Cost-aware decision engine | Planned |
+| Custom rule and alert API | Planned |
+| FastAPI and dashboard integration | Pending |
+| Database persistence | Pending integration/verification |
+| Transaction simulator | Planned |
+| SHAP explanations | Planned |
+| Drift monitoring | Planned |
+| Second-dataset validation | Pending |
+| End-to-end tests and performance evaluation | Pending |
+
+Update this table as implementation progresses.
+
+## Project Structure
+
+Proposed repository layout:
+
+```text
+financial-fraud-detection-ai/
+├── api/
+│   └── main.py
+├── dashboard/
+│   └── app.py
+├── simulator/
+│   └── stream.py
+├── src/
+│   ├── data/
+│   │   └── preprocessing.py
+│   ├── math_risk.py
+│   ├── rule_engine.py
+│   ├── train.py
+│   ├── predict.py
+│   ├── calibration.py
+│   ├── decision_engine.py
+│   ├── explainability.py
+│   └── monitoring.py
+├── tests/
+├── data/
+├── models/
+├── reports/
+├── notebooks/
+├── requirements.txt
+├── .env.example
+├── Dockerfile
+├── compose.yaml
+└── README.md
+```
+
+This is a proposed structure; retain or add files according to the actual repository.
+
+## Installation and Usage
+
+First, verify the project's dependencies and entry points. A typical local setup is:
+
+```bash
+git clone <your-repository-url>
+cd financial-fraud-detection-ai
+python -m venv .venv
+```
+
+Activate the environment.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS/Linux:**
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies after creating or verifying `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+Once the corresponding modules have been implemented, the expected development commands are:
+
+```bash
+uvicorn api.main:app --reload
+```
+
+Open `http://127.0.0.1:8000/docs` for the FastAPI interactive documentation.
+
+Start the dashboard:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+These commands are intended setup instructions and may require adjustment to match the actual repository.
+
+## Security and Reliability
+
+Before exposing the API beyond a local demonstration:
+
+- Validate requests using Pydantic.
+- Add API-key or JWT authentication.
+- Apply rate limiting.
+- Record auditable decisions and model versions.
+- Protect credentials using environment variables.
+- Avoid committing sensitive data or secrets.
+- Use reproducible experiment configurations and versioned model artefacts.
+
+## Limitations
+
+- PaySim is synthetic and may not represent real-world fraud complexity.
+- Real-time processing, notifications, and reviewer workflows are simulated unless connected to external services.
+- The system is not connected to a real bank or payment processor.
+- Fraud labels can be delayed or incomplete.
+- Cost-aware decisions depend on stated assumptions about losses and review costs.
+- Distribution drift does not automatically mean fraud has increased.
+- Performance claims require reproducible experiments.
+
+## Future Enhancements
+
+1. Add a second fraud dataset and chronological evaluation.
+2. Complete a leakage audit and hybrid-model ablation study.
+3. Implement stacking and probability calibration.
+4. Optimize decision thresholds using expected cost and reviewer capacity.
+5. Add drift injection and delayed-label monitoring.
+6. Implement reviewer feedback and controlled retraining.
+7. Add API authentication, rate limiting, audit logs, and automated tests.
+8. Containerize the application with Docker Compose.
+9. Measure latency, throughput, and memory usage.
+10. Prepare a scripted five-minute demonstration.
+
+## Conclusion
+
+The project aims to demonstrate a modular and explainable approach to financial fraud detection by combining machine learning, anomaly detection, configurable rules, and cost-aware decisions. Its research value will depend on reproducible evaluation, time-aware validation, comparison across datasets, and evidence that each component improves detection or reduces expected cost.
+
